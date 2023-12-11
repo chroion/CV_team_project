@@ -63,8 +63,16 @@ while True:
         p1 = np.float32([saved_keypoints[ind].pt for ind in query_idx])
         p2 = np.float32([current_keypoints[ind].pt for ind in train_idx])
         
+        if len(p2) == 0:
+            continue
+        
         # Fundamental Matrix 계산 및 [R|t] 추정
         F, _ = cv2.findFundamentalMat(p1, p2, cv2.FM_8POINT)
+        
+        # F의 형태가 (3, 3)이 아니면 계산을 스킵
+        if F is None or F.shape != (3, 3):
+            continue
+        
         E = K.T @ F @ K
         _, R, t, _ = cv2.recoverPose(E, p1, p2, K)
 
