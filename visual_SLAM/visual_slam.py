@@ -8,7 +8,7 @@ with np.load('./camera_params.npz') as file:
     dist = file['dist']
 
 # ORB 초기화
-orb = cv2.ORB_create()
+AKAZE = cv2.AKAZE_create()
 
 # BFMatcher 객체 생성
 bf = cv2.BFMatcher()
@@ -34,7 +34,7 @@ while True:
 
     # 'c'를 눌러 현재 프레임 이미지 및 키포인트와 디스크립터 저장
     if cv2.waitKey(1) & 0xFF == ord('c') and len(saved_images) == 0:
-        keypoints, descriptors = orb.detectAndCompute(frame, None)
+        keypoints, descriptors = AKAZE.detectAndCompute(frame, None)
         saved_images = frame
         saved_keypoints = keypoints
         saved_descriptors = descriptors
@@ -47,7 +47,7 @@ while True:
     # 특징점 투영
     if project_kp:
         # 현재 이미지의 키포인트와 디스크립터 저장
-        current_keypoints, current_descriptors = orb.detectAndCompute(frame, None)
+        current_keypoints, current_descriptors = AKAZE.detectAndCompute(frame, None)
         
         # 현재 이미지와 저장된 이미지간의 디스크립터 매칭
         matches = bf.knnMatch(saved_descriptors, current_descriptors, k=2)
@@ -76,17 +76,9 @@ while True:
         E = K.T @ F @ K
         _, R, t, _ = cv2.recoverPose(E, p1, p2, K)
 
-        # R, t의 평균 계산
-        R_avg = alpha * R + (1 - alpha) * prev_R
-        t_avg = alpha * t + (1 - alpha) * prev_t
-
-        # 이전 자세 업데이트
-        prev_R = R
-        prev_t = t
-
         # Triangulation을 통한 3D 좌표 계산
         P0 = K @ np.hstack((np.eye(3), np.zeros((3, 1))))
-        P1 = K @ np.hstack((R_avg, t_avg))
+        P1 = K @ np.hstack((R, t))
         tri_coord = cv2.triangulatePoints(P0, P1, p1.T, p2.T)
         tri_coord /= tri_coord[3]
         
@@ -133,6 +125,7 @@ while True:
             # 이전 좌표 업데이트
             prev_2d_points[key] = (avg_x, avg_y)
 
+        frame = cv2.hconcat([saved_images, frame])  # 저장된 이미지와 현재 프레임을 가로로 나란히 배치
     
     cv2.imshow('Camera Feed', frame)
 
