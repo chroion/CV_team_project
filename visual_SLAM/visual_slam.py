@@ -125,7 +125,7 @@ while True:
             # 이전 좌표 업데이트
             prev_2d_points[key] = (avg_x, avg_y)
 
-        frame = cv2.hconcat([saved_images, frame])  # 저장된 이미지와 현재 프레임을 가로로 나란히 배치
+        frame = cv2.hconcat([frame, saved_images])  # 저장된 이미지와 현재 프레임을 가로로 나란히 배치
     
     cv2.imshow('Camera Feed', frame)
 
