@@ -84,8 +84,8 @@ while True:
         query_idx = [match.queryIdx for match in matches_good]
         train_idx = [match.trainIdx for match in matches_good]
 
-        p1 = np.float32([saved_keypoints[ind].pt for ind in query_idx])
-        p2 = np.float32([current_keypoints[ind].pt for ind in train_idx])
+        p1 = np.float32([saved_keypoints[idx].pt for idx in query_idx])
+        p2 = np.float32([current_keypoints[idx].pt for idx in train_idx])
         
         if len(p2) == 0:
             frame = cv2.hconcat([frame, saved_images])
