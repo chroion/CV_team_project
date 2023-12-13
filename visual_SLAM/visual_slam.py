@@ -37,7 +37,7 @@ def triangulate_points(P0, P1, pts1, pts2):
 AKAZE = cv2.AKAZE_create()
 
 # BFMatcher 객체 생성
-bf = cv2.BFMatcher()
+bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
 # 초기 설정
 saved_images = [] # 저장된 이미지
