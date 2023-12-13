@@ -6,6 +6,32 @@ import matplotlib.pyplot as plt
 with np.load('./camera_params.npz') as file:
     K = file['mtx']
     dist = file['dist']
+    
+def triangulate_points(P0, P1, pts1, pts2):
+    num_points = pts1.shape[1]
+    points_4d = np.zeros((4, num_points))
+
+    for i in range(num_points):
+        # 각 카메라에서의 특징점 좌표
+        x1, y1 = pts1[:, i]
+        x2, y2 = pts2[:, i]
+
+        # 선형 시스템 구성
+        A = np.vstack([
+            x1 * P0[2, :] - P0[0, :],
+            y1 * P0[2, :] - P0[1, :],
+            x2 * P1[2, :] - P1[0, :],
+            y2 * P1[2, :] - P1[1, :]
+        ])
+
+        # SVD를 사용하여 선형 시스템 해결
+        _, _, Vt = np.linalg.svd(A)
+        X = Vt[-1]
+
+        # 결과 저장
+        points_4d[:, i] = X / X[3]
+
+    return points_4d
 
 # ORB 초기화
 AKAZE = cv2.AKAZE_create()
@@ -79,8 +105,9 @@ while True:
         # Triangulation을 통한 3D 좌표 계산
         P0 = K @ np.hstack((np.eye(3), np.zeros((3, 1))))
         P1 = K @ np.hstack((R, t))
-        tri_coord = cv2.triangulatePoints(P0, P1, p1.T, p2.T)
-        tri_coord /= tri_coord[3]
+        tri_coord = triangulate_points(P0, P1, p1.T, p2.T)
+        """tri_coord = cv2.triangulatePoints(P0, P1, p1.T, p2.T)
+        tri_coord /= tri_coord[3]"""
         
         # 새로 계산된 특징점의 월드좌표를 기존 리스트와 비교하여 업데이트
         for match, coord in zip(matches_good, tri_coord.T):
