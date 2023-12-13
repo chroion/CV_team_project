@@ -9,7 +9,7 @@ with np.load('./camera_params.npz') as file:
     
 def triangulate_points(P0, P1, pts1, pts2):
     num_points = pts1.shape[1]
-    points_4d = np.zeros((4, num_points))
+    homogeneous_points_3d = np.zeros((4, num_points))
 
     for i in range(num_points):
         # 각 카메라에서의 특징점 좌표
@@ -29,9 +29,9 @@ def triangulate_points(P0, P1, pts1, pts2):
         X = Vt[-1]
 
         # 결과 저장
-        points_4d[:, i] = X / X[3]
+        homogeneous_points_3d[:, i] = X / X[3]
 
-    return points_4d
+    return homogeneous_points_3d
 
 # AKAZE 초기화
 AKAZE = cv2.AKAZE_create()
@@ -88,7 +88,7 @@ while True:
         p2 = np.float32([current_keypoints[idx].pt for idx in train_idx])
         
         if len(p2) == 0:
-            frame = cv2.hconcat([frame, saved_images])
+            frame = cv2.hconcat([frame, saved_images])  # 저장된 이미지와 현재 프레임을 가로로 나란히 배치
             cv2.imshow('Camera Feed', frame)
             continue
         
@@ -97,7 +97,7 @@ while True:
         F, mask = cv2.findFundamentalMat(p1, p2, cv2.FM_RANSAC)
         
         if mask is None:
-            frame = cv2.hconcat([frame, saved_images])
+            frame = cv2.hconcat([frame, saved_images])  # 저장된 이미지와 현재 프레임을 가로로 나란히 배치
             cv2.imshow('Camera Feed', frame)
             continue
         
@@ -106,7 +106,7 @@ while True:
         
         # F의 형태가 (3, 3)이 아니면 계산을 스킵
         if F is None or F.shape != (3, 3):
-            frame = cv2.hconcat([frame, saved_images])
+            frame = cv2.hconcat([frame, saved_images])  # 저장된 이미지와 현재 프레임을 가로로 나란히 배치
             cv2.imshow('Camera Feed', frame)
             continue
         
