@@ -33,7 +33,7 @@ def triangulate_points(P0, P1, pts1, pts2):
 
     return points_4d
 
-# ORB 초기화
+# AKAZE 초기화
 AKAZE = cv2.AKAZE_create()
 
 # BFMatcher 객체 생성
