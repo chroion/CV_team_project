@@ -45,8 +45,6 @@ project_kp = False # 특징점 투영 여부
 tri_coord_dict = {}  # 각 특징점의 월드좌표를 저장하는 딕셔너리
 alpha = 0.8     # 이동 평균 강도 파라미터
 max_distance = 10.0  # 좌표 업데이트를 위한 최대 거리 임계값
-prev_R = np.eye(3)  # 이전 회전 행렬 초기화 (단위 행렬)
-prev_t = np.zeros((3, 1))  # 이전 이동 벡터 초기화
 prev_2d_points = {}  # 이전에 투영된 2D 포인트를 저장하는 딕셔너리
 
 # 카메라 캡처 시작
@@ -90,13 +88,26 @@ while True:
         p2 = np.float32([current_keypoints[ind].pt for ind in train_idx])
         
         if len(p2) == 0:
+            frame = cv2.hconcat([frame, saved_images])
+            cv2.imshow('Camera Feed', frame)
             continue
         
         # Fundamental Matrix 계산 및 [R|t] 추정
-        F, _ = cv2.findFundamentalMat(p1, p2, cv2.FM_8POINT)
+        #F, _ = cv2.findFundamentalMat(p1, p2, cv2.FM_8POINT)
+        F, mask = cv2.findFundamentalMat(p1, p2, cv2.FM_RANSAC)
+        
+        if mask is None:
+            frame = cv2.hconcat([frame, saved_images])
+            cv2.imshow('Camera Feed', frame)
+            continue
+        
+        # RANSAC에 의해 선별된 매칭만 사용
+        matches_good = [m for m, inlier in zip(matches_good, mask.ravel()) if inlier]
         
         # F의 형태가 (3, 3)이 아니면 계산을 스킵
         if F is None or F.shape != (3, 3):
+            frame = cv2.hconcat([frame, saved_images])
+            cv2.imshow('Camera Feed', frame)
             continue
         
         E = K.T @ F @ K
