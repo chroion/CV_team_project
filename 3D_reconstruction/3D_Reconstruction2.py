@@ -28,6 +28,31 @@ def estimate_camera_pose(image, camera_matrix, dist_coeffs):
     else:
         return False, None, None
 
+def triangulate_multiple_points(P0, P1, pts1, pts2):
+    num_points = pts1.shape[1]
+    homogeneous_points_3d = np.zeros((4, num_points))
+
+    for i in range(num_points):
+        homogeneous_points_3d[:, i] = triangulate_single_point(P0, P1, pts1[:, i], pts2[:, i])
+
+    return homogeneous_points_3d
+
+# Triangulate points
+def triangulate_single_point(P1, P2, pts1, pts2):
+    # Construct the A matrix for linear triangulation
+    A = np.zeros((4, 4))
+    A[0] = pts1[0] * P1[2] - P1[0]
+    A[1] = pts1[1] * P1[2] - P1[1]
+    A[2] = pts2[0] * P2[2] - P2[0]
+    A[3] = pts2[1] * P2[2] - P2[1]
+    
+    # Solve for the 3D point using SVD
+    _, _, VT = np.linalg.svd(A)
+    X_homogeneous = VT[-1]  # Last row of VT
+    X_homogeneous /= X_homogeneous[3]  # Normalize to obtain homogeneous 3D point
+    
+    return X_homogeneous  # Return the non-homogeneous 3D point
+
 def triangulate_points(kp1, kp2, good_matches, pose1, pose2, camera_matrix):
     P1 = pose1
     P2 = pose2
@@ -38,10 +63,9 @@ def triangulate_points(kp1, kp2, good_matches, pose1, pose2, camera_matrix):
     pts1 = np.float32([kp1[m.queryIdx].pt for m in good_matches])
     pts2 = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
-    points_4d_hom = cv.triangulatePoints(P1, P2, pts1.T, pts2.T)
-    points_4d = points_4d_hom / points_4d_hom[3]
+    points_4d = triangulate_multiple_points(P1, P2, pts1.T, pts2.T)
     points_3d = points_4d[:3, :].T
-
+            
     return points_3d, P2
 
 def detect_and_match_features(img1, img2):
@@ -56,12 +80,12 @@ def detect_and_match_features(img1, img2):
     good_matches = [m for m, n in matches if m.distance < 0.7 * n.distance]
 
     img3 = cv.drawMatches(img1, kp1, img2, kp2, good_matches, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    plt.imshow(img3), plt.show()
+    cv.imwrite('matched_image.png', img3)
 
     return kp1, kp2, good_matches
 
 # 카메라 매트릭스 및 왜곡 계수 불러오기
-with np.load('C:/Users/Hyemin/Desktop/camera_params.npz') as file:
+with np.load('../visual_SLAM/camera_params.npz') as file:
     K = file['mtx']
     dist = file['dist']
 
@@ -73,7 +97,7 @@ saved_images = []  # 이미지 저장 여부
 project_kp = False  # 특징점 투영 여부
 
 # 카메라 캡처 시작
-cap = cv.VideoCapture(1)
+cap = cv.VideoCapture(0)
 
 while True:
     # 카메라 프레임 읽기

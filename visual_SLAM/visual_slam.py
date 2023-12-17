@@ -7,31 +7,31 @@ with np.load('./camera_params.npz') as file:
     K = file['mtx']
     dist = file['dist']
     
-def triangulate_points(P0, P1, pts1, pts2):
+def triangulate_multiple_points(P0, P1, pts1, pts2):
     num_points = pts1.shape[1]
     homogeneous_points_3d = np.zeros((4, num_points))
 
     for i in range(num_points):
-        # 각 카메라에서의 특징점 좌표
-        x1, y1 = pts1[:, i]
-        x2, y2 = pts2[:, i]
-
-        # 선형 시스템 구성
-        A = np.vstack([
-            x1 * P0[2, :] - P0[0, :],
-            y1 * P0[2, :] - P0[1, :],
-            x2 * P1[2, :] - P1[0, :],
-            y2 * P1[2, :] - P1[1, :]
-        ])
-
-        # SVD를 사용하여 선형 시스템 해결
-        _, _, Vt = np.linalg.svd(A)
-        X = Vt[-1]
-
-        # 결과 저장
-        homogeneous_points_3d[:, i] = X / X[3]
+        homogeneous_points_3d[:, i] = triangulate_single_point(P0, P1, pts1[:, i], pts2[:, i])
 
     return homogeneous_points_3d
+
+# Triangulate points
+def triangulate_single_point(P1, P2, pts1, pts2):
+    # Construct the A matrix for linear triangulation
+    A = np.zeros((4, 4))
+    A[0] = pts1[0] * P1[2] - P1[0]
+    A[1] = pts1[1] * P1[2] - P1[1]
+    A[2] = pts2[0] * P2[2] - P2[0]
+    A[3] = pts2[1] * P2[2] - P2[1]
+    
+    # Solve for the 3D point using SVD
+    _, _, VT = np.linalg.svd(A)
+    X_homogeneous = VT[-1]  # Last row of VT
+    X_homogeneous /= X_homogeneous[3]  # Normalize to obtain homogeneous 3D point
+    
+    return X_homogeneous  # Return the non-homogeneous 3D point
+
 
 # AKAZE 초기화
 AKAZE = cv2.AKAZE_create()
@@ -116,9 +116,7 @@ while True:
         # Triangulation을 통한 3D 좌표 계산
         P0 = K @ np.hstack((np.eye(3), np.zeros((3, 1))))
         P1 = K @ np.hstack((R, t))
-        tri_coord = triangulate_points(P0, P1, p1.T, p2.T)
-        """tri_coord = cv2.triangulatePoints(P0, P1, p1.T, p2.T)
-        tri_coord /= tri_coord[3]"""
+        tri_coord = triangulate_multiple_points(P0, P1, p1.T, p2.T)
         
         # 새로 계산된 특징점의 월드좌표를 기존 리스트와 비교하여 업데이트
         for match, coord in zip(matches_good, tri_coord.T):
