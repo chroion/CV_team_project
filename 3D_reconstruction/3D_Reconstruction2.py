@@ -4,6 +4,32 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 
+def triangulate_points(P0, P1, pts1, pts2):
+    num_points = pts1.shape[1]
+    homogeneous_points_3d = np.zeros((4, num_points))
+
+    for i in range(num_points):
+        # 각 카메라에서의 특징점 좌표
+        x1, y1 = pts1[:, i]
+        x2, y2 = pts2[:, i]
+
+        # 선형 시스템 구성
+        A = np.vstack([
+            x1 * P0[2, :] - P0[0, :],
+            y1 * P0[2, :] - P0[1, :],
+            x2 * P1[2, :] - P1[0, :],
+            y2 * P1[2, :] - P1[1, :]
+        ])
+
+        # SVD를 사용하여 선형 시스템 해결
+        _, _, Vt = np.linalg.svd(A)
+        X = Vt[-1]
+
+        # 결과 저장
+        homogeneous_points_3d[:, i] = X / X[3]
+
+    return homogeneous_points_3d
+
 def estimate_camera_pose(image, camera_matrix, dist_coeffs):
     pattern_size = (6, 4)
     square_size = 40.0  # 체스보드 스퀘어의 크기 (mm)
@@ -38,8 +64,7 @@ def triangulate_points(kp1, kp2, good_matches, pose1, pose2, camera_matrix):
     pts1 = np.float32([kp1[m.queryIdx].pt for m in good_matches])
     pts2 = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
-    points_4d_hom = cv.triangulatePoints(P1, P2, pts1.T, pts2.T)
-    points_4d = points_4d_hom / points_4d_hom[3]
+    points_4d = triangulate_points(P1, P2, pts1.T, pts2.T)
     points_3d = points_4d[:3, :].T
 
     return points_3d, P2
